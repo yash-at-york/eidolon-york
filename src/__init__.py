@@ -1,0 +1,1 @@
+"""Eidolon source package."""

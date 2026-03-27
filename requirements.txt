@@ -1,0 +1,47 @@
+# Core parsing
+tree-sitter
+tree-sitter-python
+
+# File watching
+watchdog
+
+# Local storage
+duckdb>=1.5.0
+
+# LLM inference - OpenAI-compatible client (used for Ollama local inference)
+openai
+
+# HuggingFace (embeddings + hub utilities)
+huggingface_hub>=1.8.0
+sentence-transformers==5.3.0
+transformers==5.3.0
+torch>=2.10.0
+
+# Vector store
+qdrant-client>=1.17.1
+
+# Graph store
+falkordb>=1.6.0
+
+# Message queue
+nats-py>=2.14.0
+
+# Agent framework
+langgraph>=1.1.3
+langchain-core>=1.2.20
+langchain-community<=1.0.0
+
+# Environment & config
+python-dotenv>=1.2.0
+
+# Terminal UX
+rich>=14.3.0
+
+# Testing
+pytest>=9.0.0
+pytest-asyncio>=1.3.0
+
+# Web dashboard
+fastapi>=0.135.0
+uvicorn>=0.42.0
+websockets>=16.0.0

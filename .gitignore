@@ -1,0 +1,57 @@
+# Eidolon - Python
+
+# Runtime secrets 
+.env
+.ghost_session_key
+.ghost_mapper.db
+.ghost_checkpoints.db
+
+# Runtime artifacts
+demo/app_test.py.bak
+demo/last_manifest.json
+outputs/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Virtual environment
+.venv/
+venv/
+env/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor
+.vscode/settings.json
+.idea/
+*.swp
+*.swo
+
+# LangGraph / LangSmith run artifacts
+langgraph.json
+*.sqlite
+
+# Docker volumes (if mounted locally)
+infrastructure/volumes/
+
+# Docs
+docs/
+research_agent/
+
+# Legacy
+legacy/
