@@ -28,7 +28,7 @@ The pipeline pauses before the final step. A human reviews the diagnosis and dec
 
 ```bash
 # 1. Clone and install
-git clone https://github.com/yashcb/eidolon.git
+git clone https://github.com/yash-at-york/eidolon-york.git
 cd eidolon
 python -m venv .venv && .venv\Scripts\activate  # Windows
 pip install -r requirements.txt
