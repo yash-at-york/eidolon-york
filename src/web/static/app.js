@@ -73,7 +73,10 @@ function onPipelineStart(ev) {
   tokenMappings = [];
   resetUI();
 
-  document.getElementById('event-label').textContent = ev.event || DEFAULT_EVENT;
+  const evLabel = typeof ev.event === 'object' && ev.event !== null
+    ? (ev.event.error_message || JSON.stringify(ev.event))
+    : (ev.event || DEFAULT_EVENT);
+  document.getElementById('event-label').textContent = evLabel;
   document.getElementById('service-gem').classList.add('active');
   document.getElementById('service-label').textContent = (ev.service || DEFAULT_SERVICE).toUpperCase();
   document.getElementById('pipeline-phase').textContent = 'RUNNING';
@@ -87,7 +90,10 @@ function onPipelineStart(ev) {
     document.getElementById('mttd-fill').style.width = pct + '%';
   }, 200);
 
-  setStatus("Analysis started — " + (ev.event || '').slice(0, 60));
+  const evStr = typeof ev.event === 'object' && ev.event !== null
+    ? (ev.event.error_message || JSON.stringify(ev.event))
+    : String(ev.event || '');
+  setStatus("Analysis started — " + evStr.slice(0, 60));
 }
 
 function onNodeStart(ev) {
@@ -155,9 +161,6 @@ function onGhostNode(ev) {
   const disc = data.structural_discriminators || {};
   const lineStart = data.line_start;
   const lineEnd   = data.line_end;
-
-  // Add to code mirror mapping
-  addTokenMapping(id, disc, lineStart, lineEnd, type);
 
   // Add to ghost node list
   const card = document.createElement('div');

@@ -93,6 +93,8 @@ class GhostMapper:
         Hash an identifier name and persist the mapping locally.
         Returns a stable string of the form 'h_XXXXXXXX'.
         Hashing the same name twice yields the same result within a session.
+        In read-only mode the hash is still computed correctly (deterministic
+        from the session key) but the mapping is not persisted to disk.
         """
         if not name:
             return "h_unknown"
@@ -105,11 +107,12 @@ class GhostMapper:
         raw = hmac.new(self._key, name.encode("utf-8"), hashlib.sha256).hexdigest()[:8]
         hash_id = f"h_{raw}"
 
-        with self._lock:
-            self._db.execute(
-                "INSERT OR IGNORE INTO hash_map (hash_id, original_name) VALUES (?, ?)",
-                [hash_id, name],
-            )
+        if not self._read_only:
+            with self._lock:
+                self._db.execute(
+                    "INSERT OR IGNORE INTO hash_map (hash_id, original_name) VALUES (?, ?)",
+                    [hash_id, name],
+                )
         return hash_id
 
     def lookup(self, hash_id: str) -> str | None:

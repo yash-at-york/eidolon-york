@@ -92,7 +92,7 @@ body::after {
 #app {
   position: relative; z-index: 1;
   display: grid;
-  grid-template-rows: 72px 1fr 38px;
+  grid-template-rows: 54px 1fr 34px;
   height: 100vh;
 }
 
@@ -101,11 +101,11 @@ header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 16px;
+  padding: 0 14px;
   background: var(--marble);
   border-bottom: 2px solid var(--stone);
   box-shadow: var(--shadow-sm);
-  gap: 12px;
+  gap: 10px;
   overflow: hidden;
 }
 
@@ -113,7 +113,7 @@ header {
 header::after {
   content: '';
   position: absolute;
-  left: 0; right: 0; top: 72px;
+  left: 0; right: 0; top: 54px;
   height: 3px;
   background: repeating-linear-gradient(
     90deg,
@@ -125,10 +125,10 @@ header::after {
   opacity: 0.35;
 }
 
-.logo { display: flex; align-items: center; gap: 14px; flex-shrink: 0; }
+.logo { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
 
 .logo-mark {
-  width: 44px; height: 44px;
+  width: 34px; height: 34px;
   border: 1.5px solid var(--bronze);
   border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
@@ -136,11 +136,11 @@ header::after {
   background: linear-gradient(135deg, var(--parchment-2), var(--marble));
 }
 
-.logo-mark svg { width: 24px; height: 24px; }
+.logo-mark svg { width: 20px; height: 20px; }
 
 .logo-text {
   font-family: var(--font-title);
-  font-size: 22px;
+  font-size: 18px;
   font-weight: 700;
   letter-spacing: 0.12em;
   color: var(--ink);
@@ -151,11 +151,11 @@ header::after {
 
 .logo-sub {
   font-family: var(--font-body);
-  font-size: 11px;
-  letter-spacing: 0.2em;
+  font-size: 10px;
+  letter-spacing: 0.18em;
   color: var(--ink-dim);
   text-transform: uppercase;
-  margin-top: 3px;
+  margin-top: 2px;
   font-style: italic;
 }
 
@@ -165,23 +165,28 @@ header::after {
   text-align: center;
   border-left: 1px solid var(--border);
   border-right: 1px solid var(--border);
-  padding: 0 16px;
+  padding: 0 12px;
   min-width: 0;
   overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
 }
 
 .sponsor-label {
   font-family: var(--font-title);
   font-size: 8px;
-  letter-spacing: 0.3em;
+  letter-spacing: 0.2em;
   text-transform: uppercase;
-  color: var(--ink-dim);
-  margin-bottom: 2px;
+  color: var(--stone-dark);
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 #sponsor-name {
   font-family: var(--font-title);
-  font-size: 15px;
+  font-size: 13px;
   font-weight: 600;
   letter-spacing: 0.06em;
   color: var(--bronze);
@@ -192,21 +197,22 @@ header::after {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  min-width: 0;
 }
 
 #sponsor-name:hover { color: var(--terracotta); }
 #sponsor-name:focus { outline: none; border-bottom: 1px dashed var(--bronze); }
 #sponsor-name::placeholder { color: var(--stone-dark); font-style: italic; }
 
-.header-controls { display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
+.header-controls { display: flex; gap: 6px; align-items: center; flex-shrink: 0; }
 
 /* Buttons */
 .btn {
-  padding: 8px 16px;
+  padding: 6px 13px;
   font-family: var(--font-title);
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 600;
-  letter-spacing: 0.15em;
+  letter-spacing: 0.13em;
   text-transform: uppercase;
   border: 1.5px solid;
   cursor: pointer;
@@ -244,7 +250,7 @@ header::after {
 .btn-wipe:hover { background: var(--hash-color); color: var(--marble); }
 
 .header-status {
-  display: flex; align-items: center; gap: 8px; margin-right: 8px;
+  display: flex; align-items: center; gap: 6px; margin-right: 4px;
 }
 
 .status-gem {
@@ -283,9 +289,9 @@ main {
 .panel:last-child { border-right: none; }
 
 .panel-header {
-  padding: 12px 16px 10px;
+  padding: 9px 14px 8px;
   border-bottom: 1px solid var(--border);
-  display: flex; align-items: center; gap: 10px;
+  display: flex; align-items: center; gap: 8px;
   background: var(--marble);
   flex-shrink: 0;
 }
@@ -439,9 +445,9 @@ main {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 12px 16px;
+  padding: 10px 16px;
   gap: 0;
-  height: 100%;
+  min-height: 100%;
   justify-content: center;
 }
 
@@ -451,14 +457,14 @@ main {
   max-width: 380px;
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 7px 10px;
+  gap: 10px;
+  padding: 5px 8px;
   border-radius: 3px;
   transition: all 0.3s;
 }
 
 .pipeline-node-icon {
-  width: 40px; height: 40px;
+  width: 34px; height: 34px;
   border-radius: 50%;
   border: 1.5px solid var(--border-dark);
   background: var(--node-idle);
@@ -468,7 +474,7 @@ main {
   box-shadow: var(--shadow-sm);
 }
 
-.pipeline-node-icon svg { width: 18px; height: 18px; }
+.pipeline-node-icon svg { width: 15px; height: 15px; }
 
 .pipeline-node.active .pipeline-node-icon {
   border-color: var(--terracotta);
@@ -496,9 +502,9 @@ main {
 
 .pipeline-node-name {
   font-family: var(--font-title);
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--ink-dim);
   transition: color 0.3s;
@@ -509,10 +515,10 @@ main {
 .pipeline-node.replay .pipeline-node-name { color: var(--bronze); }
 
 .pipeline-node-status {
-  font-size: 14px;
+  font-size: 12px;
   color: var(--ink-dim);
-  margin-top: 2px;
-  min-height: 18px;
+  margin-top: 1px;
+  min-height: 16px;
   font-family: var(--font-body);
   transition: color 0.3s;
 }
@@ -530,7 +536,7 @@ main {
 
 /* ── Connector ───────────────────────────────────────────────────────────── */
 .pipeline-connector {
-  width: 40px; height: 18px;
+  width: 34px; height: 12px;
   position: relative; flex-shrink: 0;
   display: flex; flex-direction: column; align-items: center;
 }
@@ -557,8 +563,8 @@ main {
 
 /* MTTD block */
 #mttd-bar {
-  margin: 0 16px 16px;
-  padding: 12px 16px;
+  margin: 0 12px 10px;
+  padding: 8px 12px;
   border: 1px solid var(--border);
   background: var(--marble);
   border-radius: 3px;

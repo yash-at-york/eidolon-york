@@ -15,6 +15,7 @@ CLI Usage:
 """
 from __future__ import annotations
 
+import json
 import sys
 import time
 from pathlib import Path
@@ -230,7 +231,8 @@ def run_agent(error_event: str, service: str = "default-svc") -> dict:
     Web mode (cfg.WEB_MODE=True): HITLBridge waits for browser button click.
     """
     graph = build_graph()
-    thread_id = f"{service}-{hash(error_event) & 0xFFFF}"
+    _event_key = json.dumps(error_event, sort_keys=True) if isinstance(error_event, dict) else str(error_event)
+    thread_id = f"{service}-{hash(_event_key) & 0xFFFF}"
     config = {"configurable": {"thread_id": thread_id}}
 
     initial_state: AgentState = {

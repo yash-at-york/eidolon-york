@@ -38,18 +38,18 @@
 
     <!-- Sponsor / Conference Field -->
     <div class="sponsor-field">
-      <div class="sponsor-label">Presented in partnership with</div>
+      <div class="sponsor-label">Presented by</div>
       <input
         type="text"
         id="sponsor-name"
-        placeholder="Your Organization Name"
+        placeholder="York IE Team"
         autocomplete="off"
         spellcheck="false"
       >
     </div>
 
     <!-- Status + Controls -->
-    <div style="display:flex;align-items:center;gap:16px;">
+    <div style="display:flex;align-items:center;gap:10px;">
       <div class="header-status">
         <div class="status-gem" id="service-gem"></div>
         <span class="status-label" id="service-label">Offline</span>
@@ -114,19 +114,22 @@
       </div>
 
       <!-- Error event input -->
-      <div style="padding:10px 12px;border-bottom:1px solid var(--border);background:var(--parchment-2);flex-shrink:0;">
-        <div style="font-family:var(--font-title);font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-dim);margin-bottom:5px;">Error Event</div>
+      <div style="padding:7px 12px 6px;border-bottom:1px solid var(--border);background:var(--parchment-2);flex-shrink:0;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+          <span style="font-family:var(--font-title);font-size:8px;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-dim);flex-shrink:0;">Error Event</span>
+          <span style="font-size:9px;color:var(--ink-dim);font-family:var(--font-mono);display:flex;gap:8px;overflow:hidden;white-space:nowrap;">
+            <span style="color:var(--terracotta);">&#9670; plain string</span>
+            <span style="color:var(--stone-dark);">or</span>
+            <span style="color:var(--bronze);">&#9670; {"error_message":"…","traceback":[…]}</span>
+          </span>
+        </div>
         <textarea
           id="event-input"
           placeholder='e.g. 401 Unauthorized on POST /verify-token'
-          style="width:100%;font-family:var(--font-mono);font-size:12px;color:var(--ink);background:var(--marble);border:1px solid var(--border-dark);padding:6px 10px;border-radius:2px;outline:none;resize:vertical;min-height:50px;"
+          style="width:100%;font-family:var(--font-mono);font-size:11px;color:var(--ink);background:var(--marble);border:1px solid var(--border-dark);padding:5px 8px;border-radius:2px;outline:none;resize:vertical;min-height:38px;line-height:1.4;"
           onfocus="this.style.borderColor='var(--terracotta)'"
           onblur="this.style.borderColor='var(--border-dark)'"
         ></textarea>
-        <div style="font-size:9px;color:var(--ink-dim);margin-top:4px;font-family:var(--font-mono);display:flex;gap:12px;">
-          <span style="color:var(--terracotta);">&#9670; Simple:</span> <span>"401 Unauthorized on POST /verify-token"</span>
-          <span style="color:var(--bronze);margin-left:8px;">&#9670; Structured:</span> <span>{"error_message":"...","traceback":[{...}]}</span>
-        </div>
       </div>
 
       <div class="panel-body">
