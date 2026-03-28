@@ -22,6 +22,12 @@ import sys
 import time
 from pathlib import Path
 
+if sys.stdout.encoding != 'utf-8':
+    try:
+        sys.stdout.reconfigure(encoding='utf-8')
+    except AttributeError:
+        pass
+
 ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(ROOT))
 
@@ -33,7 +39,7 @@ def banner():
 
 
 def check_docker():
-    print("▸ Checking Docker services…")
+    print(" Checking Docker services…")
     try:
         result = subprocess.run(
             ["docker", "compose", "-f", str(ROOT / "infrastructure" / "docker-compose.yml"), "ps", "--services", "--filter", "status=running"],
@@ -58,34 +64,43 @@ def check_docker():
             print("  Waiting for services to be ready…")
             time.sleep(4)
         else:
-            print("  ✓ All containers running")
+            print("   All containers running")
     except FileNotFoundError:
-        print("  ⚠ Docker not found - assuming services are running manually")
+        print("   Docker not found - assuming services are running manually")
     except Exception as e:
-        print(f"  ⚠ Docker check failed ({e}) - continuing anyway")
+        print(f"   Docker check failed ({e}) - continuing anyway")
 
 
 def seed_data(skip: bool):
     if skip:
-        print("▸ Skipping seed (--skip-seed flag)")
+        print(" Skipping seed (--skip-seed flag)")
         return
 
-    print("▸ Seeding demo data…")
+    print(" Seeding demo data…")
     try:
+        env = os.environ.copy()
+        env["PYTHONIOENCODING"] = "utf-8"
+        # Capture as raw bytes to avoid Windows cp1252 decode errors from Rich output
         result = subprocess.run(
             [sys.executable, str(ROOT / "demo" / "seed_demo_data.py")],
-            cwd=str(ROOT), capture_output=True, text=True, timeout=120,
+            cwd=str(ROOT), capture_output=True, timeout=120, env=env
         )
+        stdout = result.stdout.decode("utf-8", errors="replace")
+        stderr = result.stderr.decode("utf-8", errors="replace")
         if result.returncode == 0:
-            # Extract last meaningful line
-            last = [l for l in result.stdout.strip().split("\n") if l.strip()]
-            print(f"  ✓ {last[-1].strip() if last else 'Seed complete'}")
+            # Strip ANSI escape codes and get last meaningful line
+            import re as _re
+            ansi_escape = _re.compile(r'\x1b\[[0-9;]*m|\x1b\[[0-9;]*[A-Za-z]')
+            clean = ansi_escape.sub('', stdout)
+            last = [l for l in clean.strip().split("\n") if l.strip()]
+            print(f"   {last[-1].strip() if last else 'Seed complete'}")
         else:
-            print(f"  ⚠ Seed failed: {result.stderr[-200:]}")
+            print(f"   Seed failed: {stderr[-300:]}")
     except subprocess.TimeoutExpired:
-        print("  ⚠ Seed timed out - continuing (may already be seeded)")
+        print("   Seed timed out - continuing (may already be seeded)")
     except Exception as e:
-        print(f"  ⚠ Seed error: {e}")
+        print(f"   Seed error: {e}")
+
 
 
 def start_server(port: int):
@@ -93,7 +108,7 @@ def start_server(port: int):
     os.environ["GHOST_DEMO_MODE"] = "true"
 
     url = f"http://localhost:{port}"
-    print(f"\n▸ Starting Eidolon dashboard at {url}")
+    print(f"\n Starting Eidolon dashboard at {url}")
     print("  Press Ctrl+C to stop\n")
     print("═" * 62)
     print(f"  Open your browser: {url}")

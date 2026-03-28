@@ -1,1621 +1,339 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Eidolon - Agentic Debugger</title>
+  <title>Eidolon — Privacy-Preserving Agentic Debugger</title>
+  <meta name="description" content="Eidolon diagnoses software errors without exposing source code. A privacy-first agentic debugger using Code Property Graphs and local sanitization.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link
-    href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@300;400;600;700&family=JetBrains+Mono:ital,wght@0,300;0,400;0,500;1,300&display=swap"
-    rel="stylesheet">
-  <style>
-    /* ── Design System ────────────────────────────────────────────────────── */
-    :root {
-      --void: #03050d;
-      --surface: #080e1a;
-      --card: #0c1520;
-      --card-bright: #0f1e30;
-      --border: #182840;
-      --border-glow: #1e3a5a;
-
-      --signal: #00ff88;
-      --signal-mid: rgba(0, 255, 136, 0.35);
-      --signal-dim: rgba(0, 255, 136, 0.08);
-      --signal-glow: 0 0 24px rgba(0, 255, 136, 0.5), 0 0 60px rgba(0, 255, 136, 0.15);
-
-      --amber: #ffaa00;
-      --amber-dim: rgba(255, 170, 0, 0.1);
-      --amber-glow: 0 0 24px rgba(255, 170, 0, 0.5), 0 0 60px rgba(255, 170, 0, 0.2);
-
-      --cold: #0099ff;
-      --cold-dim: rgba(0, 153, 255, 0.08);
-      --danger: #ff3356;
-      --danger-dim: rgba(255, 51, 86, 0.1);
-
-      --text: #c8d8e8;
-      --text-dim: #3a5a7a;
-      --text-hash: #4dd9ff;
-      --text-code: #00cc66;
-
-      --node-pending: #1a2840;
-      --node-active: rgba(0, 255, 136, 0.15);
-      --node-done: rgba(0, 255, 136, 0.08);
-
-      --font-ui: 'Chakra Petch', monospace;
-      --font-mono: 'JetBrains Mono', monospace;
-    }
-
-    *,
-    *::before,
-    *::after {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
-
-    html,
-    body {
-      width: 100%;
-      height: 100vh;
-      overflow: hidden;
-      background: var(--void);
-      color: var(--text);
-      font-family: var(--font-mono);
-      font-size: 12px;
-    }
-
-    /* Subtle grid background */
-    body::before {
-      content: '';
-      position: fixed;
-      inset: 0;
-      z-index: 0;
-      pointer-events: none;
-      background-image:
-        linear-gradient(rgba(0, 255, 136, 0.025) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(0, 255, 136, 0.025) 1px, transparent 1px);
-      background-size: 40px 40px;
-    }
-
-    /* Vignette */
-    body::after {
-      content: '';
-      position: fixed;
-      inset: 0;
-      z-index: 0;
-      pointer-events: none;
-      background: radial-gradient(ellipse at center, transparent 40%, rgba(3, 5, 13, 0.8) 100%);
-    }
-
-    /* ── Layout ──────────────────────────────────────────────────────────── */
-    #app {
-      position: relative;
-      z-index: 1;
-      display: grid;
-      grid-template-rows: 52px 1fr 36px;
-      height: 100vh;
-      gap: 0;
-    }
-
-    /* ── Header ─────────────────────────────────────────────────────────── */
-    header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 0 20px;
-      border-bottom: 1px solid var(--border);
-      background: rgba(8, 14, 26, 0.9);
-      backdrop-filter: blur(8px);
-    }
-
-    .logo {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-
-    .logo-mark {
-      width: 28px;
-      height: 28px;
-      position: relative;
-    }
-
-    .logo-mark svg {
-      width: 100%;
-      height: 100%;
-    }
-
-    .logo-text {
-      font-family: var(--font-ui);
-      font-size: 16px;
-      font-weight: 700;
-      letter-spacing: 0.15em;
-      text-transform: uppercase;
-      color: var(--text);
-    }
-
-    .logo-text span {
-      color: var(--signal);
-      text-shadow: var(--signal-glow);
-    }
-
-    .logo-sub {
-      font-size: 9px;
-      letter-spacing: 0.25em;
-      color: var(--text-dim);
-      text-transform: uppercase;
-      margin-top: 1px;
-    }
-
-    .header-status {
-      display: flex;
-      align-items: center;
-      gap: 16px;
-    }
-
-    .status-pill {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      padding: 4px 10px;
-      border-radius: 2px;
-      border: 1px solid var(--border);
-      font-size: 10px;
-      letter-spacing: 0.1em;
-      color: var(--text-dim);
-      font-family: var(--font-ui);
-    }
-
-    .status-pill .dot {
-      width: 6px;
-      height: 6px;
-      border-radius: 50%;
-      background: var(--text-dim);
-      transition: background 0.3s, box-shadow 0.3s;
-    }
-
-    .status-pill.active .dot {
-      background: var(--signal);
-      box-shadow: 0 0 8px var(--signal);
-      animation: pulse-dot 1.5s ease-in-out infinite;
-    }
-
-    @keyframes pulse-dot {
-
-      0%,
-      100% {
-        opacity: 1;
-      }
-
-      50% {
-        opacity: 0.4;
-      }
-    }
-
-    .header-controls {
-      display: flex;
-      gap: 8px;
-    }
-
-    .btn {
-      padding: 6px 14px;
-      font-family: var(--font-ui);
-      font-size: 10px;
-      font-weight: 600;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-      border: none;
-      cursor: pointer;
-      transition: all 0.15s;
-    }
-
-    .btn-ghost {
-      background: transparent;
-      border: 1px solid var(--border);
-      color: var(--text-dim);
-    }
-
-    .btn-ghost:hover {
-      border-color: var(--signal);
-      color: var(--signal);
-      box-shadow: 0 0 12px rgba(0, 255, 136, 0.15);
-    }
-
-    .btn-inject {
-      background: var(--amber-dim);
-      border: 1px solid var(--amber);
-      color: var(--amber);
-    }
-
-    .btn-inject:hover {
-      background: var(--amber);
-      color: var(--void);
-      box-shadow: var(--amber-glow);
-    }
-
-    .btn-run {
-      background: var(--signal-dim);
-      border: 1px solid var(--signal);
-      color: var(--signal);
-    }
-
-    .btn-run:hover {
-      background: var(--signal);
-      color: var(--void);
-      box-shadow: var(--signal-glow);
-    }
-
-    .btn-run:disabled {
-      opacity: 0.4;
-      cursor: not-allowed;
-      background: transparent;
-    }
-
-    /* ── Main panel ─────────────────────────────────────────────────────── */
-    main {
-      display: grid;
-      grid-template-columns: 260px 1fr 300px;
-      gap: 0;
-      overflow: hidden;
-    }
-
-    /* ── Panel shared ──────────────────────────────────────────────────── */
-    .panel {
-      border-right: 1px solid var(--border);
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-    }
-
-    .panel:last-child {
-      border-right: none;
-    }
-
-    .panel-header {
-      padding: 10px 14px 8px;
-      border-bottom: 1px solid var(--border);
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      flex-shrink: 0;
-    }
-
-    .panel-label {
-      font-family: var(--font-ui);
-      font-size: 9px;
-      letter-spacing: 0.25em;
-      text-transform: uppercase;
-      color: var(--text-dim);
-    }
-
-    .panel-count {
-      margin-left: auto;
-      font-size: 9px;
-      color: var(--signal);
-      font-family: var(--font-ui);
-    }
-
-    .panel-body {
-      flex: 1;
-      overflow-y: auto;
-      padding: 10px;
-      scrollbar-width: thin;
-      scrollbar-color: var(--border) transparent;
-    }
-
-    /* ── Ghost Payload Panel ────────────────────────────────────────────── */
-    #ghost-panel {
-      background: var(--surface);
-    }
-
-    .ghost-node-card {
-      margin-bottom: 6px;
-      padding: 8px 10px;
-      border: 1px solid var(--border);
-      border-left: 2px solid var(--signal);
-      background: var(--signal-dim);
-      border-radius: 2px;
-      animation: fadeSlideIn 0.4s ease;
-    }
-
-    @keyframes fadeSlideIn {
-      from {
-        opacity: 0;
-        transform: translateX(-6px);
-      }
-
-      to {
-        opacity: 1;
-        transform: translateX(0);
-      }
-    }
-
-    .ghost-node-id {
-      font-size: 11px;
-      color: var(--text-hash);
-      letter-spacing: 0.05em;
-      font-style: italic;
-    }
-
-    .ghost-node-meta {
-      margin-top: 4px;
-      font-size: 10px;
-      color: var(--text-dim);
-      display: flex;
-      gap: 10px;
-      flex-wrap: wrap;
-    }
-
-    .ghost-node-meta span {
-      display: flex;
-      align-items: center;
-      gap: 3px;
-    }
-
-    .tag {
-      display: inline-block;
-      padding: 1px 5px;
-      font-size: 9px;
-      border-radius: 1px;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-    }
-
-    .tag-auth {
-      background: rgba(255, 170, 0, 0.15);
-      color: var(--amber);
-      border: 1px solid rgba(255, 170, 0, 0.3);
-    }
-
-    .tag-db {
-      background: rgba(0, 153, 255, 0.12);
-      color: var(--cold);
-      border: 1px solid rgba(0, 153, 255, 0.3);
-    }
-
-    .tag-high {
-      background: var(--danger-dim);
-      color: var(--danger);
-      border: 1px solid rgba(255, 51, 86, 0.3);
-    }
-
-    .tag-low {
-      background: var(--signal-dim);
-      color: var(--signal);
-      border: 1px solid rgba(0, 255, 136, 0.3);
-    }
-
-    .tag-medium {
-      background: rgba(255, 170, 0, 0.1);
-      color: var(--amber);
-      border: 1px solid rgba(255, 170, 0, 0.2);
-    }
-
-    .tag-func {
-      background: var(--cold-dim);
-      color: var(--cold);
-      border: 1px solid rgba(0, 153, 255, 0.2);
-    }
-
-    /* ── Pipeline Panel ────────────────────────────────────────────────── */
-    #pipeline-panel {
-      background: var(--void);
-      position: relative;
-    }
-
-    .pipeline-container {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      padding: 20px 16px;
-      gap: 0;
-      height: 100%;
-      justify-content: center;
-    }
-
-    .pipeline-node {
-      position: relative;
-      width: 100%;
-      max-width: 340px;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-
-    .pipeline-node-icon {
-      width: 42px;
-      height: 42px;
-      border-radius: 50%;
-      border: 1px solid var(--border);
-      background: var(--node-pending);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 16px;
-      flex-shrink: 0;
-      transition: all 0.4s;
-      position: relative;
-      z-index: 1;
-    }
-
-    .pipeline-node.active .pipeline-node-icon {
-      border-color: var(--signal);
-      background: var(--node-active);
-      box-shadow: var(--signal-glow);
-      animation: nodeActivePulse 1.5s ease-in-out infinite;
-    }
-
-    .pipeline-node.done .pipeline-node-icon {
-      border-color: var(--signal);
-      background: var(--node-done);
-    }
-
-    @keyframes nodeActivePulse {
-
-      0%,
-      100% {
-        box-shadow: var(--signal-glow);
-      }
-
-      50% {
-        box-shadow: 0 0 6px rgba(0, 255, 136, 0.2);
-      }
-    }
-
-    .pipeline-node-body {
-      flex: 1;
-    }
-
-    .pipeline-node-name {
-      font-family: var(--font-ui);
-      font-size: 11px;
-      font-weight: 600;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-      color: var(--text-dim);
-      transition: color 0.3s;
-    }
-
-    .pipeline-node.active .pipeline-node-name {
-      color: var(--signal);
-    }
-
-    .pipeline-node.done .pipeline-node-name {
-      color: var(--text);
-    }
-
-    .pipeline-node-status {
-      font-size: 10px;
-      color: var(--text-dim);
-      margin-top: 2px;
-      min-height: 14px;
-      transition: all 0.3s;
-    }
-
-    .pipeline-node.active .pipeline-node-status {
-      color: var(--signal);
-    }
-
-    .pipeline-node-time {
-      font-size: 9px;
-      color: var(--text-dim);
-      font-family: var(--font-ui);
-    }
-
-    .pipeline-node.done .pipeline-node-time {
-      color: var(--signal);
-    }
-
-    /* Flow connector */
-    .pipeline-connector {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      height: 24px;
-      position: relative;
-      width: 42px;
-      flex-shrink: 0;
-    }
-
-    .pipeline-connector::before {
-      content: '';
-      position: absolute;
-      left: 50%;
-      top: 0;
-      bottom: 0;
-      transform: translateX(-50%);
-      width: 1px;
-      background: var(--border);
-      transition: background 0.3s;
-    }
-
-    .pipeline-connector.flowing::before {
-      background: var(--signal);
-      box-shadow: 0 0 6px var(--signal);
-      animation: flowPulse 1s linear infinite;
-    }
-
-    @keyframes flowPulse {
-      0% {
-        opacity: 0.3;
-      }
-
-      50% {
-        opacity: 1;
-      }
-
-      100% {
-        opacity: 0.3;
-      }
-    }
-
-    /* MTTD bar */
-    #mttd-bar {
-      margin: 16px;
-      padding: 10px 14px;
-      border: 1px solid var(--border);
-      background: var(--card);
-      border-radius: 2px;
-      border-top: 1px solid var(--border);
-      flex-shrink: 0;
-    }
-
-    .mttd-label {
-      display: flex;
-      justify-content: space-between;
-      font-size: 9px;
-      letter-spacing: 0.2em;
-      text-transform: uppercase;
-      color: var(--text-dim);
-      font-family: var(--font-ui);
-      margin-bottom: 6px;
-    }
-
-    #mttd-value {
-      color: var(--signal);
-      transition: color 0.5s;
-    }
-
-    .mttd-track {
-      height: 3px;
-      background: var(--border);
-      border-radius: 2px;
-      overflow: hidden;
-    }
-
-    .mttd-fill {
-      height: 100%;
-      background: linear-gradient(90deg, var(--signal), var(--cold));
-      border-radius: 2px;
-      width: 0%;
-      transition: width 1s linear;
-      box-shadow: 0 0 8px var(--signal);
-    }
-
-    /* ── Brain Panel ──────────────────────────────────────────────────── */
-    #brain-panel {
-      background: var(--surface);
-    }
-
-    .hypothesis-card {
-      margin-bottom: 8px;
-      padding: 10px 12px;
-      border: 1px solid var(--border);
-      background: var(--card);
-      border-radius: 2px;
-      animation: fadeSlideIn 0.4s ease;
-      transition: border-color 0.3s;
-    }
-
-    .hypothesis-card.best {
-      border-color: var(--signal);
-      background: var(--signal-dim);
-    }
-
-    .hypo-rank {
-      font-family: var(--font-ui);
-      font-size: 9px;
-      letter-spacing: 0.15em;
-      text-transform: uppercase;
-      color: var(--text-dim);
-      margin-bottom: 4px;
-    }
-
-    .hypo-rank .best-badge {
-      color: var(--signal);
-      margin-left: 6px;
-    }
-
-    .hypo-text {
-      font-size: 11px;
-      color: var(--text);
-      line-height: 1.5;
-      margin-bottom: 6px;
-    }
-
-    .hypo-confidence {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .conf-bar-track {
-      flex: 1;
-      height: 3px;
-      background: var(--border);
-      border-radius: 2px;
-      overflow: hidden;
-    }
-
-    .conf-bar-fill {
-      height: 100%;
-      border-radius: 2px;
-      transition: width 0.8s ease;
-    }
-
-    .conf-bar-fill.high {
-      background: var(--signal);
-      box-shadow: 0 0 6px var(--signal);
-    }
-
-    .conf-bar-fill.medium {
-      background: var(--amber);
-    }
-
-    .conf-bar-fill.low {
-      background: var(--danger);
-    }
-
-    .conf-pct {
-      font-size: 10px;
-      font-family: var(--font-ui);
-      color: var(--text-dim);
-      min-width: 28px;
-      text-align: right;
-    }
-
-    .validation-row {
-      margin-bottom: 6px;
-      padding: 6px 8px;
-      border: 1px solid var(--border);
-      background: var(--card);
-      border-radius: 2px;
-      font-size: 10px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    .verdict-accept {
-      color: var(--signal);
-    }
-
-    .verdict-reject {
-      color: var(--danger);
-    }
-
-    .verdict-uncertain {
-      color: var(--amber);
-    }
-
-    /* ── Status Bar ─────────────────────────────────────────────────── */
-    footer {
-      display: flex;
-      align-items: center;
-      padding: 0 16px;
-      border-top: 1px solid var(--border);
-      background: rgba(8, 14, 26, 0.95);
-      gap: 20px;
-      font-size: 9px;
-      letter-spacing: 0.15em;
-      text-transform: uppercase;
-      color: var(--text-dim);
-      font-family: var(--font-ui);
-    }
-
-    #status-msg {
-      color: var(--signal);
-      transition: color 0.3s;
-    }
-
-    .footer-sep {
-      color: var(--border);
-    }
-
-    #ws-indicator {
-      margin-left: auto;
-      display: flex;
-      align-items: center;
-      gap: 5px;
-    }
-
-    #ws-dot {
-      width: 5px;
-      height: 5px;
-      border-radius: 50%;
-      background: var(--danger);
-      transition: background 0.3s, box-shadow 0.3s;
-    }
-
-    #ws-dot.connected {
-      background: var(--signal);
-      box-shadow: 0 0 6px var(--signal);
-    }
-
-    /* ── HITL Overlay ───────────────────────────────────────────────── */
-    #hitl-overlay {
-      position: fixed;
-      inset: 0;
-      z-index: 100;
-      display: none;
-      align-items: center;
-      justify-content: center;
-      background: rgba(3, 5, 13, 0.85);
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
-    }
-
-    #hitl-overlay.active {
-      display: flex;
-      animation: overlayIn 0.5s ease;
-    }
-
-    @keyframes overlayIn {
-      from {
-        opacity: 0;
-      }
-
-      to {
-        opacity: 1;
-      }
-    }
-
-    .hitl-card {
-      width: min(700px, 90vw);
-      border: 1px solid var(--amber);
-      background: var(--card);
-      box-shadow: var(--amber-glow), inset 0 0 60px rgba(255, 170, 0, 0.03);
-      padding: 32px;
-      border-radius: 2px;
-      animation: cardSlideUp 0.4s cubic-bezier(0.22, 1, 0.36, 1);
-      position: relative;
-      overflow: hidden;
-    }
-
-    .hitl-card::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      height: 2px;
-      background: linear-gradient(90deg, transparent, var(--amber), transparent);
-      animation: scanLine 2s linear infinite;
-    }
-
-    @keyframes scanLine {
-      0% {
-        transform: scaleX(0) translateX(-100%);
-      }
-
-      100% {
-        transform: scaleX(1) translateX(100%);
-      }
-    }
-
-    @keyframes cardSlideUp {
-      from {
-        opacity: 0;
-        transform: translateY(30px);
-      }
-
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
-    }
-
-    .hitl-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 4px 10px;
-      border: 1px solid var(--amber);
-      color: var(--amber);
-      font-family: var(--font-ui);
-      font-size: 9px;
-      letter-spacing: 0.25em;
-      text-transform: uppercase;
-      margin-bottom: 20px;
-    }
-
-    .hitl-hypothesis-text {
-      font-size: 15px;
-      font-weight: 400;
-      color: var(--text);
-      line-height: 1.6;
-      margin-bottom: 16px;
-      font-family: var(--font-ui);
-    }
-
-    .hitl-root-cause {
-      font-size: 11px;
-      color: var(--text-dim);
-      line-height: 1.7;
-      margin-bottom: 20px;
-      padding: 12px;
-      border-left: 2px solid var(--border);
-      background: var(--surface);
-    }
-
-    .hitl-patch-sketch {
-      font-size: 11px;
-      color: var(--cold);
-      margin-bottom: 20px;
-      padding: 10px 12px;
-      border: 1px solid rgba(0, 153, 255, 0.2);
-      background: var(--cold-dim);
-      font-style: italic;
-    }
-
-    .hitl-confidence {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      margin-bottom: 24px;
-    }
-
-    .hitl-conf-label {
-      font-family: var(--font-ui);
-      font-size: 9px;
-      letter-spacing: 0.2em;
-      text-transform: uppercase;
-      color: var(--text-dim);
-      min-width: 80px;
-    }
-
-    .hitl-conf-track {
-      flex: 1;
-      height: 6px;
-      background: var(--border);
-      border-radius: 3px;
-      overflow: hidden;
-    }
-
-    .hitl-conf-fill {
-      height: 100%;
-      border-radius: 3px;
-      background: linear-gradient(90deg, var(--signal), var(--cold));
-      transition: width 1s ease;
-      box-shadow: 0 0 10px rgba(0, 255, 136, 0.4);
-    }
-
-    .hitl-conf-value {
-      font-family: var(--font-ui);
-      font-size: 18px;
-      font-weight: 700;
-      color: var(--signal);
-      text-shadow: var(--signal-glow);
-      min-width: 48px;
-      text-align: right;
-    }
-
-    .hitl-actions {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
-    }
-
-    .btn-approve,
-    .btn-reject {
-      padding: 14px;
-      font-family: var(--font-ui);
-      font-size: 12px;
-      font-weight: 700;
-      letter-spacing: 0.2em;
-      text-transform: uppercase;
-      border: none;
-      cursor: pointer;
-      transition: all 0.2s;
-      border-radius: 2px;
-    }
-
-    .btn-approve {
-      background: var(--signal-dim);
-      border: 1px solid var(--signal);
-      color: var(--signal);
-    }
-
-    .btn-approve:hover {
-      background: var(--signal);
-      color: var(--void);
-      box-shadow: var(--signal-glow);
-      transform: translateY(-1px);
-    }
-
-    .btn-approve:active {
-      transform: translateY(0);
-    }
-
-    .btn-reject {
-      background: var(--danger-dim);
-      border: 1px solid var(--danger);
-      color: var(--danger);
-    }
-
-    .btn-reject:hover {
-      background: var(--danger);
-      color: var(--void);
-      box-shadow: 0 0 24px rgba(255, 51, 86, 0.5);
-      transform: translateY(-1px);
-    }
-
-    .hitl-nodes {
-      margin-top: 12px;
-      font-size: 10px;
-      color: var(--text-dim);
-    }
-
-    .hitl-nodes .node-id {
-      display: inline-block;
-      margin: 2px 3px;
-      padding: 2px 6px;
-      border: 1px solid var(--border);
-      color: var(--text-hash);
-      font-style: italic;
-    }
-
-    /* ── Scrollbar ─────────────────────────────────────────────────── */
-    ::-webkit-scrollbar {
-      width: 3px;
-    }
-
-    ::-webkit-scrollbar-track {
-      background: transparent;
-    }
-
-    ::-webkit-scrollbar-thumb {
-      background: var(--border);
-      border-radius: 2px;
-    }
-
-    /* ── Empty states ──────────────────────────────────────────────── */
-    .empty-state {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      height: 100%;
-      color: var(--text-dim);
-      text-align: center;
-      gap: 8px;
-    }
-
-    .empty-state .icon {
-      font-size: 24px;
-      opacity: 0.3;
-    }
-
-    .empty-state .label {
-      font-family: var(--font-ui);
-      font-size: 9px;
-      letter-spacing: 0.2em;
-      text-transform: uppercase;
-    }
-
-    /* ── Scan animation for active pipeline ─────────────────────────── */
-    .scanning-text {
-      animation: scanText 2s ease-in-out infinite;
-    }
-
-    @keyframes scanText {
-
-      0%,
-      100% {
-        opacity: 0.5;
-      }
-
-      50% {
-        opacity: 1;
-      }
-    }
-  </style>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css">
 </head>
 
 <body>
-  <div id="app">
+<div id="app">
 
-    <!-- ── Header ─────────────────────────────────────────────────────── -->
-    <header>
-      <div class="logo">
-        <div class="logo-mark">
-          <svg viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <circle cx="14" cy="14" r="13" stroke="rgba(0,255,136,0.4)" stroke-width="1" />
-            <circle cx="14" cy="14" r="9" stroke="rgba(0,255,136,0.6)" stroke-width="1" />
-            <circle cx="14" cy="14" r="4" fill="rgba(0,255,136,0.8)" />
-            <line x1="14" y1="1" x2="14" y2="8" stroke="rgba(0,255,136,0.4)" stroke-width="1" />
-            <line x1="14" y1="20" x2="14" y2="27" stroke="rgba(0,255,136,0.4)" stroke-width="1" />
-            <line x1="1" y1="14" x2="8" y2="14" stroke="rgba(0,255,136,0.4)" stroke-width="1" />
-            <line x1="20" y1="14" x2="27" y2="14" stroke="rgba(0,255,136,0.4)" stroke-width="1" />
-          </svg>
-        </div>
-        <div>
-          <div class="logo-text">GHOST<span>TWIN</span></div>
-          <div class="logo-sub">Privacy-preserving agentic debugger</div>
-        </div>
+  <!-- ── Header ───────────────────────────────────────────────────────── -->
+  <header style="position:relative;">
+    <div class="logo">
+      <!-- Eidolon mark: Greek phi-like phantom symbol -->
+      <div class="logo-mark">
+        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <!-- Outer circle — the world -->
+          <circle cx="12" cy="12" r="10.5" stroke="#8B6420" stroke-width="1"/>
+          <!-- Inner ghost form — vertical axis -->
+          <line x1="12" y1="1.5" x2="12" y2="22.5" stroke="#8B6420" stroke-width="1"/>
+          <!-- Phi cross -->
+          <ellipse cx="12" cy="12" rx="5.5" ry="7" stroke="#B05030" stroke-width="1.2"/>
+          <!-- Center point -->
+          <circle cx="12" cy="12" r="1.5" fill="#B05030"/>
+        </svg>
       </div>
+      <div>
+        <div class="logo-text">Eid<span class="accent">olon</span></div>
+        <div class="logo-sub">Privacy-Preserving Agentic Debugger</div>
+      </div>
+    </div>
 
+    <!-- Sponsor / Conference Field -->
+    <div class="sponsor-field">
+      <div class="sponsor-label">Presented in partnership with</div>
+      <input
+        type="text"
+        id="sponsor-name"
+        placeholder="Your Organization Name"
+        autocomplete="off"
+        spellcheck="false"
+      >
+    </div>
+
+    <!-- Status + Controls -->
+    <div style="display:flex;align-items:center;gap:16px;">
       <div class="header-status">
-        <div class="status-pill" id="service-pill">
-          <div class="dot"></div>
-          <span id="service-label">OFFLINE</span>
-        </div>
-        <div style="font-size:9px; color:var(--text-dim); font-family:var(--font-ui); letter-spacing:.1em;">
-          <span id="model-label">—</span>
-        </div>
+        <div class="status-gem" id="service-gem"></div>
+        <span class="status-label" id="service-label">Offline</span>
       </div>
-
+      <div style="font-family:var(--font-mono);font-size:10px;color:var(--ink-dim);" id="model-label"></div>
       <div class="header-controls">
-        <button class="btn btn-ghost" onclick="restoreBug()">RESTORE</button>
-        <button class="btn btn-inject" onclick="injectBug()">INJECT BUG</button>
-        <button class="btn btn-run" id="run-btn" onclick="runPipeline()">▶ RUN ANALYSIS</button>
+        <button class="btn btn-wipe" id="wipe-btn" onclick="wipeMemory()" title="Clear Solution Library — next run uses full pipeline">Wipe Memory</button>
+        <button class="btn btn-run" id="run-btn" onclick="runPipeline()">&#9654; Run Analysis</button>
+        <button class="btn btn-outline" style="border-color:var(--crimson);color:var(--crimson);" onclick="shutdownServer()">Shutdown</button>
       </div>
-    </header>
+    </div>
+  </header>
 
-    <!-- ── Main ──────────────────────────────────────────────────────── -->
-    <main>
+  <!-- ── Main ─────────────────────────────────────────────────────────── -->
+  <main>
 
-      <!-- Ghost Payload Panel -->
-      <aside class="panel" id="ghost-panel">
-        <div class="panel-header">
-          <span style="font-size:11px;">👻</span>
-          <span class="panel-label">Ghost Payload</span>
-          <span class="panel-count" id="ghost-count">0 nodes</span>
-        </div>
-        <div class="panel-body" id="ghost-body">
-          <div class="empty-state">
-            <div class="icon">👻</div>
-            <div class="label">Awaiting structural scan</div>
-          </div>
-        </div>
-      </aside>
-
-      <!-- Pipeline Panel -->
-      <section class="panel" id="pipeline-panel">
-        <div class="panel-header">
-          <span style="font-size:11px;">⚡</span>
-          <span class="panel-label">Diagnostic Pipeline</span>
-          <span class="panel-count" id="pipeline-phase">STANDBY</span>
-        </div>
-        <div class="panel-body">
-          <div class="pipeline-container">
-
-            <!-- Node: Triage -->
-            <div class="pipeline-node" id="node-triage">
-              <div class="pipeline-node-icon">🔍</div>
-              <div class="pipeline-node-body">
-                <div class="pipeline-node-name">Triage</div>
-                <div class="pipeline-node-status" id="status-triage">Waiting…</div>
-              </div>
-              <div class="pipeline-node-time" id="time-triage"></div>
-            </div>
-
-            <div class="pipeline-connector" id="conn-1"></div>
-
-            <!-- Node: Context Fetch -->
-            <div class="pipeline-node" id="node-context_fetch">
-              <div class="pipeline-node-icon">📡</div>
-              <div class="pipeline-node-body">
-                <div class="pipeline-node-name">Context Fetch</div>
-                <div class="pipeline-node-status" id="status-context_fetch">Waiting…</div>
-              </div>
-              <div class="pipeline-node-time" id="time-context_fetch"></div>
-            </div>
-
-            <div class="pipeline-connector" id="conn-2"></div>
-
-            <!-- Node: Hypothesis -->
-            <div class="pipeline-node" id="node-hypothesis">
-              <div class="pipeline-node-icon">💡</div>
-              <div class="pipeline-node-body">
-                <div class="pipeline-node-name">Hypothesis</div>
-                <div class="pipeline-node-status" id="status-hypothesis">Waiting…</div>
-              </div>
-              <div class="pipeline-node-time" id="time-hypothesis"></div>
-            </div>
-
-            <div class="pipeline-connector" id="conn-3"></div>
-
-            <!-- Node: Validation -->
-            <div class="pipeline-node" id="node-validation">
-              <div class="pipeline-node-icon">✅</div>
-              <div class="pipeline-node-body">
-                <div class="pipeline-node-name">Validation</div>
-                <div class="pipeline-node-status" id="status-validation">Waiting…</div>
-              </div>
-              <div class="pipeline-node-time" id="time-validation"></div>
-            </div>
-
-            <div class="pipeline-connector" id="conn-4"></div>
-
-            <!-- Node: HITL -->
-            <div class="pipeline-node" id="node-hitl">
-              <div class="pipeline-node-icon">⚠️</div>
-              <div class="pipeline-node-body">
-                <div class="pipeline-node-name">Human Review</div>
-                <div class="pipeline-node-status" id="status-hitl">Waiting…</div>
-              </div>
-              <div class="pipeline-node-time" id="time-hitl"></div>
-            </div>
-
-            <div class="pipeline-connector" id="conn-5"></div>
-
-            <!-- Node: Patch -->
-            <div class="pipeline-node" id="node-patch_synthesis">
-              <div class="pipeline-node-icon">🔧</div>
-              <div class="pipeline-node-body">
-                <div class="pipeline-node-name">Patch Synthesis</div>
-                <div class="pipeline-node-status" id="status-patch_synthesis">Waiting…</div>
-              </div>
-              <div class="pipeline-node-time" id="time-patch_synthesis"></div>
-            </div>
-
-          </div>
-        </div>
-
-        <!-- MTTD -->
-        <div id="mttd-bar">
-          <div class="mttd-label">
-            <span>Mean Time to Diagnose</span>
-            <span id="mttd-value">—</span>
-          </div>
-          <div class="mttd-track">
-            <div class="mttd-fill" id="mttd-fill"></div>
-          </div>
-        </div>
-      </section>
-
-      <!-- Brain Panel -->
-      <aside class="panel" id="brain-panel">
-        <div class="panel-header">
-          <span style="font-size:11px;">🧠</span>
-          <span class="panel-label">Agent Reasoning</span>
-        </div>
-        <div class="panel-body" id="brain-body">
-          <div class="empty-state">
-            <div class="icon">🧠</div>
-            <div class="label">Agent inactive</div>
-          </div>
-        </div>
-      </aside>
-
-    </main>
-
-    <!-- ── Status Bar ─────────────────────────────────────────────────── -->
-    <footer>
-      <span id="status-msg">Connecting to Eidolon server…</span>
-      <span class="footer-sep">|</span>
-      <span id="event-label" style="color:var(--text-dim);">No active event</span>
-      <div id="ws-indicator">
-        <div id="ws-dot"></div>
-        <span id="ws-label">disconnected</span>
+    <!-- LEFT: Ghost Mirror Panel — dual code/hash view + node list -->
+    <aside class="panel" id="ghost-panel">
+      <div class="panel-header">
+        <!-- Phi symbol instead of emoji -->
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="flex-shrink:0;">
+          <circle cx="12" cy="12" r="10" stroke="#8B6420" stroke-width="1.5"/>
+          <line x1="12" y1="2" x2="12" y2="22" stroke="#8B6420" stroke-width="1.5"/>
+          <ellipse cx="12" cy="12" rx="5" ry="6.5" stroke="#B05030" stroke-width="1.5"/>
+        </svg>
+        <span class="panel-title">Ghost Mirror</span>
+        <span class="panel-badge" id="ghost-count">0 nodes</span>
       </div>
-    </footer>
 
-  </div>
-
-  <!-- ── HITL Overlay ─────────────────────────────────────────────────── -->
-  <div id="hitl-overlay">
-    <div class="hitl-card">
-      <div class="hitl-badge">⚠ Human Decision Required</div>
-      <div class="hitl-hypothesis-text" id="hitl-hypothesis-text">—</div>
-      <div class="hitl-root-cause" id="hitl-root-cause">—</div>
-      <div class="hitl-patch-sketch" id="hitl-patch-sketch">—</div>
-      <div class="hitl-confidence">
-        <div class="hitl-conf-label">Composite Confidence</div>
-        <div class="hitl-conf-track">
-          <div class="hitl-conf-fill" id="hitl-conf-fill" style="width:0%"></div>
+      <!-- Code-to-Hash Mapping Visualization -->
+      <div class="mirror-section" style="margin:10px 10px 0;">
+        <div class="mirror-section-label">
+          <span class="tag-real">Source</span>
+          <span style="color:var(--ink-dim);font-size:10px;">&#8594; What LLM Sees</span>
+          <span class="tag-ghost">Ghost</span>
         </div>
-        <div class="hitl-conf-value" id="hitl-conf-value">0%</div>
+        <div class="mirror-body" id="mirror-body">
+          <div style="font-size:12px;font-style:italic;color:var(--ink-dim);padding:4px;font-family:var(--font-body);">
+            Token mappings appear here as nodes are scanned
+          </div>
+        </div>
       </div>
-      <div class="hitl-nodes" id="hitl-nodes"></div>
-      <div class="hitl-actions" style="margin-top:24px;">
-        <button class="btn-approve" onclick="hitlDecide(true)">✓ APPROVE PATCH</button>
-        <button class="btn-reject" onclick="hitlDecide(false)">✗ REJECT</button>
+
+      <!-- Node cards -->
+      <div class="panel-body" id="ghost-body">
+        <div class="empty-state">
+          <div class="empty-icon">&#981;</div>
+          <div class="empty-label">Awaiting structural scan</div>
+          <div class="empty-desc">Ghost nodes will appear as the Code Property Graph is traversed</div>
+        </div>
       </div>
+    </aside>
+
+    <!-- CENTER: Pipeline -->
+    <section class="panel" id="pipeline-panel">
+      <div class="panel-header">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="flex-shrink:0;">
+          <path d="M12 2L12 22M7 6L12 2L17 6M7 18L12 22L17 18" stroke="#8B6420" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span class="panel-title">Diagnostic Pipeline</span>
+        <span class="panel-badge" id="pipeline-phase">Standby</span>
+      </div>
+
+      <!-- Error event input -->
+      <div style="padding:10px 12px;border-bottom:1px solid var(--border);background:var(--parchment-2);flex-shrink:0;">
+        <div style="font-family:var(--font-title);font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-dim);margin-bottom:5px;">Error Event</div>
+        <textarea
+          id="event-input"
+          placeholder='e.g. 401 Unauthorized on POST /verify-token'
+          style="width:100%;font-family:var(--font-mono);font-size:12px;color:var(--ink);background:var(--marble);border:1px solid var(--border-dark);padding:6px 10px;border-radius:2px;outline:none;resize:vertical;min-height:50px;"
+          onfocus="this.style.borderColor='var(--terracotta)'"
+          onblur="this.style.borderColor='var(--border-dark)'"
+        ></textarea>
+        <div style="font-size:9px;color:var(--ink-dim);margin-top:4px;font-family:var(--font-mono);display:flex;gap:12px;">
+          <span style="color:var(--terracotta);">&#9670; Simple:</span> <span>"401 Unauthorized on POST /verify-token"</span>
+          <span style="color:var(--bronze);margin-left:8px;">&#9670; Structured:</span> <span>{"error_message":"...","traceback":[{...}]}</span>
+        </div>
+      </div>
+
+      <div class="panel-body">
+        <div class="pipeline-container">
+
+          <!-- Triage -->
+          <div class="pipeline-node" id="node-triage">
+            <div class="pipeline-node-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.5"/>
+                <path d="M9 12l2 2 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <div class="pipeline-node-body">
+              <div class="pipeline-node-name">Triage</div>
+              <div class="pipeline-node-status" id="status-triage">Waiting</div>
+            </div>
+            <div class="pipeline-node-time" id="time-triage"></div>
+          </div>
+
+          <div class="pipeline-connector" id="conn-1"></div>
+
+          <!-- Solution Replay (fast path) -->
+          <div class="pipeline-node" id="node-solution_replay">
+            <div class="pipeline-node-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                <path d="M12 8v4l3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.5"/>
+                <path d="M7 4.5A9 9 0 0 1 21 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+              </svg>
+            </div>
+            <div class="pipeline-node-body">
+              <div class="pipeline-node-name">Solution Replay</div>
+              <div class="pipeline-node-status" id="status-solution_replay">Fast path — known errors</div>
+            </div>
+            <div class="pipeline-node-time" id="time-solution_replay"></div>
+          </div>
+
+          <div class="pipeline-connector" id="conn-2"></div>
+
+          <!-- Context Fetch -->
+          <div class="pipeline-node" id="node-context_fetch">
+            <div class="pipeline-node-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                <circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="1.5"/>
+                <path d="M20 20l-3-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                <path d="M8 11h6M11 8v6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+              </svg>
+            </div>
+            <div class="pipeline-node-body">
+              <div class="pipeline-node-name">Context Fetch</div>
+              <div class="pipeline-node-status" id="status-context_fetch">Waiting</div>
+            </div>
+            <div class="pipeline-node-time" id="time-context_fetch"></div>
+          </div>
+
+          <div class="pipeline-connector" id="conn-3"></div>
+
+          <!-- Hypothesis -->
+          <div class="pipeline-node" id="node-hypothesis">
+            <div class="pipeline-node-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                <path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 2.38-1.28 4.46-3.18 5.6L12 17H9l-.5-2.9C6.28 13.1 5 11.38 5 9.5A6.5 6.5 0 0 1 9.5 3z" stroke="currentColor" stroke-width="1.5"/>
+                <path d="M9 17v1a3 3 0 0 0 6 0v-1" stroke="currentColor" stroke-width="1.5"/>
+              </svg>
+            </div>
+            <div class="pipeline-node-body">
+              <div class="pipeline-node-name">Hypothesis</div>
+              <div class="pipeline-node-status" id="status-hypothesis">Waiting</div>
+            </div>
+            <div class="pipeline-node-time" id="time-hypothesis"></div>
+          </div>
+
+          <div class="pipeline-connector" id="conn-4"></div>
+
+          <!-- Validation -->
+          <div class="pipeline-node" id="node-validation">
+            <div class="pipeline-node-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                <rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" stroke-width="1.5"/>
+                <path d="M8 12l3 3 5-5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <div class="pipeline-node-body">
+              <div class="pipeline-node-name">Validation</div>
+              <div class="pipeline-node-status" id="status-validation">Waiting</div>
+            </div>
+            <div class="pipeline-node-time" id="time-validation"></div>
+          </div>
+
+          <div class="pipeline-connector" id="conn-5"></div>
+
+          <!-- HITL -->
+          <div class="pipeline-node" id="node-hitl">
+            <div class="pipeline-node-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                <path d="M12 2a5 5 0 1 1 0 10 5 5 0 0 1 0-10z" stroke="currentColor" stroke-width="1.5"/>
+                <path d="M3 20a9 9 0 0 1 18 0" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+              </svg>
+            </div>
+            <div class="pipeline-node-body">
+              <div class="pipeline-node-name">Human Review</div>
+              <div class="pipeline-node-status" id="status-hitl">Waiting</div>
+            </div>
+            <div class="pipeline-node-time" id="time-hitl"></div>
+          </div>
+
+          <div class="pipeline-connector" id="conn-6"></div>
+
+          <!-- Patch Synthesis -->
+          <div class="pipeline-node" id="node-patch_synthesis">
+            <div class="pipeline-node-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <div class="pipeline-node-body">
+              <div class="pipeline-node-name">Patch Synthesis</div>
+              <div class="pipeline-node-status" id="status-patch_synthesis">Waiting</div>
+            </div>
+            <div class="pipeline-node-time" id="time-patch_synthesis"></div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- MTTD -->
+      <div id="mttd-bar">
+        <div class="mttd-label">
+          <span>Mean Time to Diagnose</span>
+          <span id="mttd-value">—</span>
+        </div>
+        <div class="mttd-track">
+          <div class="mttd-fill" id="mttd-fill"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- RIGHT: Agent Reasoning -->
+    <aside class="panel" id="brain-panel">
+      <div class="panel-header">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="flex-shrink:0;">
+          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z" fill="#8B6420" opacity=".6"/>
+          <path d="M12 2C8 2 4 6 4 10c0 2.5 1.5 4.5 3 6l1 2h8l1-2c1.5-1.5 3-3.5 3-6 0-4-3.5-8-8-8z" stroke="#8B6420" stroke-width="1.2" fill="none"/>
+        </svg>
+        <span class="panel-title">Agent Reasoning</span>
+      </div>
+      <div class="panel-body" id="brain-body">
+        <div class="empty-state">
+          <div class="empty-icon">&#9670;</div>
+          <div class="empty-label">Agent inactive</div>
+          <div class="empty-desc">Hypotheses, confidence scores and the final patch will appear here</div>
+        </div>
+      </div>
+    </aside>
+
+  </main>
+
+  <!-- ── Status Bar ────────────────────────────────────────────────────── -->
+  <footer>
+    <span id="status-msg">Connecting to Eidolon server...</span>
+    <span class="footer-sep">|</span>
+    <span id="event-label">No active event</span>
+    <div id="ws-indicator">
+      <div id="ws-dot"></div>
+      <span id="ws-label" style="font-size:9px;letter-spacing:.1em;color:var(--ink-dim);">disconnected</span>
+    </div>
+  </footer>
+
+</div>
+
+<!-- ── HITL Overlay ──────────────────────────────────────────────────── -->
+<div id="hitl-overlay">
+  <div class="hitl-card">
+    <div class="hitl-badge">
+      <!-- diamond diamond -->
+      &#9670; Human Decision Required &#9670;
+    </div>
+
+    <div class="hitl-hypothesis" id="hitl-hypothesis">—</div>
+
+    <div class="hitl-root-cause" id="hitl-root-cause">—</div>
+
+    <div style="font-family:var(--font-title);font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-dim);margin-bottom:6px;">Proposed Fix</div>
+    <div class="hitl-patch-sketch" id="hitl-patch-sketch">—</div>
+
+    <div class="hitl-confidence">
+      <div class="hitl-conf-label">Composite Confidence</div>
+      <div class="hitl-conf-track">
+        <div class="hitl-conf-fill" id="hitl-conf-fill" style="width:0%"></div>
+      </div>
+      <div class="hitl-conf-value" id="hitl-conf-value">0%</div>
+    </div>
+
+    <div class="hitl-nodes" id="hitl-nodes"></div>
+
+    <div class="hitl-feedback-area">
+      <textarea id="hitl-feedback" placeholder="Optional: describe why you are rejecting this hypothesis..."></textarea>
+    </div>
+
+    <div class="hitl-actions">
+      <button class="btn-approve" onclick="hitlDecide(true)">Approve Patch</button>
+      <button class="btn-reject" onclick="hitlDecide(false)">Reject</button>
     </div>
   </div>
+</div>
 
-  <script>
-    /* ── State ──────────────────────────────────────────────────────────────── */
-    let ws = null;
-    let pipelineRunning = false;
-    let ghostNodeCount = 0;
-    let nodeStartTimes = {};
-    let pipelineStartTime = null;
-    let mttdInterval = null;
-
-    const DEFAULT_EVENT = "401 Unauthorized on POST /verify-token";
-    const DEFAULT_SERVICE = "demo-svc";
-    const NODES = ["triage", "context_fetch", "hypothesis", "validation", "hitl", "patch_synthesis"];
-
-    /* ── WebSocket ────────────────────────────────────────────────────────── */
-    function connectWS() {
-      const proto = location.protocol === 'https:' ? 'wss' : 'ws';
-      ws = new WebSocket(`${proto}://${location.host}/ws`);
-
-      ws.onopen = () => {
-        setWsState(true);
-        setStatus("Connected · Eidolon ready");
-      };
-
-      ws.onmessage = (e) => {
-        try { handleEvent(JSON.parse(e.data)); }
-        catch (err) { console.warn("Bad event:", e.data); }
-      };
-
-      ws.onclose = () => {
-        setWsState(false);
-        setStatus("Disconnected — retrying in 3s…");
-        setTimeout(connectWS, 3000);
-      };
-
-      ws.onerror = () => ws.close();
-    }
-
-    function setWsState(connected) {
-      document.getElementById('ws-dot').className = connected ? 'connected' : '';
-      document.getElementById('ws-label').textContent = connected ? 'live' : 'disconnected';
-    }
-
-    /* ── Event dispatcher ────────────────────────────────────────────────── */
-    function handleEvent(ev) {
-      switch (ev.type) {
-        case 'pipeline_start': onPipelineStart(ev); break;
-        case 'node_start': onNodeStart(ev); break;
-        case 'node_complete': onNodeComplete(ev); break;
-        case 'ghost_node': onGhostNode(ev); break;
-        case 'hypotheses': onHypotheses(ev); break;
-        case 'stream_token': onStreamToken(ev); break;
-        case 'hitl_ready': onHitlReady(ev); break;
-        case 'hitl_decision': onHitlDecision(ev); break;
-        case 'patch_ready': onPatchReady(ev); break;
-        case 'patch_reconstructed': onPatchReconstructed(ev); break;
-        case 'pipeline_complete': onPipelineComplete(ev); break;
-        case 'duplicate': onDuplicate(ev); break;
-        case 'error': onError(ev); break;
-        case 'bug_injected': setStatus("🐛 Bug injected — run analysis to detect"); break;
-        case 'bug_restored': setStatus("✓ Demo file restored"); break;
-      }
-    }
-
-    /* ── Pipeline events ─────────────────────────────────────────────────── */
-    function onPipelineStart(ev) {
-      pipelineRunning = true;
-      pipelineStartTime = Date.now();
-      ghostNodeCount = 0;
-      resetUI();
-
-      document.getElementById('event-label').textContent = ev.event || DEFAULT_EVENT;
-      document.getElementById('service-pill').classList.add('active');
-      document.getElementById('service-label').textContent = (ev.service || DEFAULT_SERVICE).toUpperCase();
-      document.getElementById('pipeline-phase').textContent = 'RUNNING';
-      document.getElementById('run-btn').disabled = true;
-
-      // Live MTTD counter
-      clearInterval(mttdInterval);
-      mttdInterval = setInterval(() => {
-        const s = ((Date.now() - pipelineStartTime) / 1000).toFixed(1);
-        document.getElementById('mttd-value').textContent = s + 's';
-        const pct = Math.min(100, (parseFloat(s) / 120) * 100);
-        document.getElementById('mttd-fill').style.width = pct + '%';
-      }, 200);
-
-      setStatus("Pipeline started · Analysing: " + (ev.event || '').slice(0, 60));
-    }
-
-    function onNodeStart(ev) {
-      nodeStartTimes[ev.node] = Date.now();
-      setNodeState(ev.node, 'active');
-      setNodeStatus(ev.node, '<span class="scanning-text">Running…</span>');
-
-      // Flow connector before this node
-      const idx = NODES.indexOf(ev.node);
-      if (idx > 0) {
-        const conn = document.getElementById('conn-' + idx);
-        if (conn) conn.classList.add('flowing');
-      }
-
-      setStatus("▶ " + (ev.label || ev.node));
-    }
-
-    function onNodeComplete(ev) {
-      const node = ev.node;
-      const elapsed = nodeStartTimes[node]
-        ? ((Date.now() - nodeStartTimes[node]) / 1000).toFixed(1) + 's'
-        : '';
-
-      setNodeState(node, 'done');
-      document.getElementById('time-' + node).textContent = elapsed;
-
-      // Stop connector animation
-      const idx = NODES.indexOf(node);
-      if (idx >= 0) {
-        const conn = document.getElementById('conn-' + (idx));
-        if (conn) conn.classList.remove('flowing');
-      }
-
-      // Node-specific status
-      if (node === 'triage') {
-        setNodeStatus(node, formatTag(ev.error_type || '?', 'type') + ' · ' + formatTag(ev.severity || '?', 'sev'));
-      } else if (node === 'context_fetch') {
-        setNodeStatus(node, `${ev.similar_count} nodes · ${ev.graph_edges} edges`);
-      } else if (node === 'hypothesis') {
-        setNodeStatus(node, `${ev.count || 0} hypotheses generated`);
-      } else if (node === 'validation') {
-        const pct = ev.composite_confidence ? (ev.composite_confidence * 100).toFixed(0) + '%' : '0%';
-        setNodeStatus(node, `Best: ${pct} composite · ${ev.gate_label || ''}`);
-      } else if (node === 'patch_synthesis') {
-        setNodeStatus(node, 'Patch ready');
-      } else {
-        setNodeStatus(node, '✓ Done');
-      }
-    }
-
-    function onGhostNode(ev) {
-      ghostNodeCount++;
-      document.getElementById('ghost-count').textContent = ghostNodeCount + ' nodes';
-
-      const data = ev.data || {};
-      const id = data.node_id || data.id || '?';
-      const nodeType = data.node_type || data.type || 'node';
-      const params = data.param_count !== undefined ? data.param_count : '?';
-      const steps = data.logic_steps !== undefined ? data.logic_steps : '?';
-
-      const card = document.createElement('div');
-      card.className = 'ghost-node-card';
-      card.innerHTML = `
-    <div class="ghost-node-id">${id}</div>
-    <div class="ghost-node-meta">
-      <span class="tag tag-func">${nodeType}</span>
-      <span>⤆ ${params} params</span>
-      <span>↙ ${steps} steps</span>
-    </div>
-  `;
-
-      const body = document.getElementById('ghost-body');
-      // Remove empty state on first node
-      const empty = body.querySelector('.empty-state');
-      if (empty) body.removeChild(empty);
-      body.appendChild(card);
-      body.scrollTop = body.scrollHeight;
-    }
-
-    function onHypotheses(ev) {
-      const hypos = ev.data || [];
-      const brainBody = document.getElementById('brain-body');
-      brainBody.innerHTML = '<div class="panel-header" style="padding:8px 0; margin-bottom:8px;"><span class="panel-label">Hypotheses</span></div>';
-
-      hypos.forEach((h, i) => {
-        const pct = Math.round((h.confidence || 0) * 100);
-        const level = pct >= 70 ? 'high' : pct >= 40 ? 'medium' : 'low';
-        const isBest = i === 0;
-        const card = document.createElement('div');
-        card.className = 'hypothesis-card' + (isBest ? ' best' : '');
-        card.innerHTML = `
-      <div class="hypo-rank">H${h.rank || i + 1}
-        ${isBest ? '<span class="best-badge">★ BEST</span>' : ''}
-      </div>
-      <div class="hypo-text">${h.hypothesis || '—'}</div>
-      <div class="hypo-confidence">
-        <div class="conf-bar-track">
-          <div class="conf-bar-fill ${level}" style="width:${pct}%"></div>
-        </div>
-        <div class="conf-pct">${pct}%</div>
-      </div>
-    `;
-        brainBody.appendChild(card);
-      });
-    }
-
-    function onStreamToken(ev) {
-      setNodeStatus('hypothesis', `Reasoning… ${ev.token_count || 0} tokens`);
-    }
-
-    function onHitlReady(ev) {
-      clearInterval(mttdInterval);
-      setNodeState('hitl', 'active');
-      setNodeStatus('hitl', '<span class="scanning-text">Awaiting your decision…</span>');
-      document.getElementById('pipeline-phase').textContent = 'AWAITING HUMAN';
-
-      const h = ev.hypothesis || {};
-      const conf = ev.confidence || 0;
-      const pct = Math.round(conf * 100);
-
-      document.getElementById('hitl-hypothesis-text').textContent =
-        h.hypothesis || 'No hypothesis available';
-      document.getElementById('hitl-root-cause').textContent =
-        h.root_cause || '—';
-      document.getElementById('hitl-patch-sketch').textContent =
-        '→ ' + (h.patch_sketch || '—');
-      document.getElementById('hitl-conf-fill').style.width = pct + '%';
-      document.getElementById('hitl-conf-value').textContent = pct + '%';
-
-      const nodes = h.affected_nodes || [];
-      document.getElementById('hitl-nodes').innerHTML = nodes.length
-        ? 'Affected: ' + nodes.map(n => `<span class="node-id">${n}</span>`).join(' ')
-        : '';
-
-      document.getElementById('hitl-overlay').classList.add('active');
-      setStatus("⚠ Human decision required — approve or reject the proposed patch");
-    }
-
-    function onHitlDecision(ev) {
-      document.getElementById('hitl-overlay').classList.remove('active');
-      setNodeState('hitl', 'done');
-      setNodeStatus('hitl', ev.approved ? '✓ Approved' : '✗ Rejected');
-      document.getElementById('time-hitl').textContent = '';
-      setStatus(ev.approved ? "✓ Approved — synthesising patch…" : "✗ Rejected — pipeline ended");
-      document.getElementById('pipeline-phase').textContent = ev.approved ? 'PATCHING' : 'REJECTED';
-    }
-
-    function onPatchReady(ev) {
-      const brainBody = document.getElementById('brain-body');
-      const patch = ev.patch || {};
-      const div = document.createElement('div');
-      div.style.cssText = 'margin-top:12px;';
-      div.innerHTML = `
-    <div class="panel-header" style="padding:8px 0; margin-bottom:8px;"><span class="panel-label">Patch Generated</span></div>
-    <div class="validation-row">
-      <span style="color:var(--text-dim)">Type</span>
-      <span style="color:var(--cold)">${patch.change_type || '—'}</span>
-    </div>
-    <div class="validation-row">
-      <span style="color:var(--text-dim)">Target</span>
-      <span style="color:var(--text-hash);font-style:italic">${patch.target_node || '—'}</span>
-    </div>
-    <div style="margin-top:8px; padding:8px 10px; border:1px solid var(--border); font-size:10px; color:var(--text-dim); line-height:1.6;">
-      ${patch.description || ev.rationale || '—'}
-    </div>
-  `;
-      brainBody.appendChild(div);
-    }
-
-    function onPatchReconstructed(ev) {
-      setStatus("✓ Patch reconstructed — analysis complete");
-    }
-
-    function onPipelineComplete(ev) {
-      clearInterval(mttdInterval);
-      pipelineRunning = false;
-      document.getElementById('run-btn').disabled = false;
-      document.getElementById('service-pill').classList.remove('active');
-      document.getElementById('pipeline-phase').textContent = 'COMPLETE';
-
-      const s = ev.mttd_seconds || 0;
-      document.getElementById('mttd-value').textContent = s + 's';
-      document.getElementById('mttd-fill').style.width = Math.min(100, (s / 120) * 100) + '%';
-
-      const colour = s < 60 ? 'var(--signal)' : s < 120 ? 'var(--amber)' : 'var(--danger)';
-      document.getElementById('mttd-value').style.color = colour;
-
-      setStatus(`✓ Complete · MTTD: ${s}s · Status: ${ev.status || 'done'}`);
-    }
-
-    function onDuplicate(ev) {
-      setNodeStatus('triage', `⚡ Duplicate (${(ev.score * 100).toFixed(0)}%) — pipeline skipped`);
-      document.getElementById('pipeline-phase').textContent = 'DUPLICATE';
-      clearInterval(mttdInterval);
-      pipelineRunning = false;
-      document.getElementById('run-btn').disabled = false;
-    }
-
-    function onError(ev) {
-      setStatus("⚠ Error: " + (ev.message || '?'));
-      clearInterval(mttdInterval);
-      pipelineRunning = false;
-      document.getElementById('run-btn').disabled = false;
-    }
-
-    /* ── HITL action ─────────────────────────────────────────────────────── */
-    async function hitlDecide(approved) {
-      document.getElementById('hitl-overlay').classList.remove('active');
-      try {
-        await fetch('/api/hitl/decide', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ approved, feedback: '' })
-        });
-      } catch (e) { console.error(e); }
-    }
-
-    /* ── API calls ───────────────────────────────────────────────────────── */
-    async function runPipeline() {
-      if (pipelineRunning) return;
-      const event = prompt("Error event to diagnose:", DEFAULT_EVENT);
-      if (!event) return;
-      const service = DEFAULT_SERVICE;
-
-      try {
-        const r = await fetch('/api/run-pipeline', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ event, service })
-        });
-        const d = await r.json();
-        if (d.error) setStatus("⚠ " + d.error);
-      } catch (e) { setStatus("⚠ Failed to start pipeline: " + e); }
-    }
-
-    async function injectBug() {
-      setStatus("Injecting bug into demo/app_test.py…");
-      await fetch('/api/inject-bug', { method: 'POST' });
-    }
-
-    async function restoreBug() {
-      setStatus("Restoring demo/app_test.py…");
-      await fetch('/api/restore', { method: 'POST' });
-    }
-
-    /* ── UI helpers ──────────────────────────────────────────────────────── */
-    function setStatus(msg) {
-      document.getElementById('status-msg').textContent = msg;
-    }
-
-    function setNodeState(node, state) {
-      const el = document.getElementById('node-' + node);
-      if (!el) return;
-      el.classList.remove('active', 'done');
-      if (state) el.classList.add(state);
-    }
-
-    function setNodeStatus(node, html) {
-      const el = document.getElementById('status-' + node);
-      if (el) el.innerHTML = html;
-    }
-
-    function formatTag(val, type) {
-      return `<span class="tag tag-${val.toLowerCase()}">${val}</span>`;
-    }
-
-    function resetUI() {
-      ghostNodeCount = 0;
-      document.getElementById('ghost-count').textContent = '0 nodes';
-      document.getElementById('ghost-body').innerHTML = '<div class="empty-state"><div class="icon">👻</div><div class="label">Scanning…</div></div>';
-      document.getElementById('brain-body').innerHTML = '<div class="empty-state"><div class="icon">🧠</div><div class="label">Agent thinking…</div></div>';
-      document.getElementById('mttd-value').textContent = '0.0s';
-      document.getElementById('mttd-value').style.color = 'var(--signal)';
-      document.getElementById('mttd-fill').style.width = '0%';
-      NODES.forEach(n => {
-        setNodeState(n, null);
-        setNodeStatus(n, 'Waiting…');
-        const t = document.getElementById('time-' + n);
-        if (t) t.textContent = '';
-      });
-      for (let i = 1; i <= 5; i++) {
-        const c = document.getElementById('conn-' + i);
-        if (c) c.classList.remove('flowing');
-      }
-      document.getElementById('event-label').textContent = 'Processing…';
-    }
-
-    /* ── Status on load ──────────────────────────────────────────────────── */
-    async function loadStatus() {
-      try {
-        const r = await fetch('/api/status');
-        const d = await r.json();
-        const m = d.models || {};
-        document.getElementById('model-label').textContent =
-          `${(m.triage || '').split('/').pop()} → ${(m.diagnosis || '').split('/').pop()}`;
-      } catch (e) { }
-    }
-
-    /* ── Boot ─────────────────────────────────────────────────────────────── */
-    connectWS();
-    loadStatus();
-  </script>
+<script src="/static/app.js"></script>
 </body>
-
 </html>

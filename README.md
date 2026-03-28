@@ -24,7 +24,7 @@ The pipeline pauses before the final step. A human reviews the diagnosis and dec
 
 ## Quick start
 
-**Prerequisites:** Docker, Python 3.11+, a HuggingFace Pro API token.
+**Prerequisites:** Docker, Python 3.11+, a HuggingFace Pro API token, OpenAI API Key (to use OpenAI models).
 
 ```bash
 # 1. Clone and install

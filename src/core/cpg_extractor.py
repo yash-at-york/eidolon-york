@@ -37,17 +37,31 @@ class CPGNode:
     parameters: list[dict] = field(default_factory=list)
     return_type: str = "Any"
     logic_sequence: list[dict] = field(default_factory=list)
+    # NEW: Line-level location (from Tree-sitter .start_point / .end_point)
+    line_start: int = 0
+    line_end:   int = 0
+    # NEW: Framework-agnostic structural discriminators
+    # Distinguishes functions with identical body shapes.
+    # Examples:
+    #   HTTP endpoint:  {"kind": "http_endpoint", "route": "/verify-token", "http_method": "POST"}
+    #   Celery task:    {"kind": "celery_task",   "task_name": "h_XXXX"}
+    #   Pytest:         {"kind": "test_function", "test_name": "h_XXXX"}
+    #   Plain function: {"kind": "plain",         "qualified_name": "h_XXXX"}
+    structural_discriminators: dict = field(default_factory=dict)
 
     def to_dict(self) -> dict:
         return {
-            "id": self.id,
-            "type": self.type,
-            "is_async": self.is_async,
-            "decorators": self.decorators,
-            "docstring": self.docstring,
-            "parameters": self.parameters,
-            "return_type": self.return_type,
+            "id":           self.id,
+            "type":         self.type,
+            "is_async":     self.is_async,
+            "decorators":   self.decorators,
+            "docstring":    self.docstring,
+            "parameters":   self.parameters,
+            "return_type":  self.return_type,
             "logic_sequence": self.logic_sequence,
+            "line_start":   self.line_start,
+            "line_end":     self.line_end,
+            "structural_discriminators": self.structural_discriminators,
         }
 
 
@@ -162,9 +176,14 @@ class CPGExtractor:
         return_type_node = node.child_by_field_name("return_type")
 
         func_id = self._hash_node(name_node)
+        func_name_text = self._node_text(name_node)
 
         # Detect async: first child is 'async' keyword
         is_async = bool(node.children and node.children[0].type == "async")
+
+        # Line numbers — from Tree-sitter start/end points (0-indexed → 1-indexed)
+        line_start = (node.start_point[0] + 1) if node.start_point else 0
+        line_end   = (node.end_point[0]   + 1) if node.end_point   else 0
 
         # Parameters
         param_hashes: dict[str, str] = {}
@@ -177,6 +196,9 @@ class CPGExtractor:
                 if child.type == "decorator":
                     decorators.append(self._node_text(child))
 
+        # Structural discriminators — framework-agnostic
+        discriminators = self._extract_discriminators(func_name_text, decorators)
+
         func_node = CPGNode(
             id=func_id,
             type="Function",
@@ -186,6 +208,9 @@ class CPGExtractor:
             parameters=params,
             return_type=self._node_text(return_type_node) or "Any",
             logic_sequence=self._extract_logic(body_node),
+            line_start=line_start,
+            line_end=line_end,
+            structural_discriminators=discriminators,
         )
 
         edges = self._extract_call_edges(func_id, body_node, param_hashes)
@@ -199,11 +224,16 @@ class CPGExtractor:
             for child in decorator_parent.children:
                 if child.type == "decorator":
                     decorators.append(self._node_text(child))
+        # Line numbers
+        line_start = (node.start_point[0] + 1) if node.start_point else 0
+        line_end   = (node.end_point[0]   + 1) if node.end_point   else 0
         return CPGNode(
             id=self._hash_node(name_node),
             type="Class",
             decorators=decorators,
             docstring=self._extract_docstring(body_node),
+            line_start=line_start,
+            line_end=line_end,
         )
 
     def _extract_import(self, node) -> list[CPGEdge]:
@@ -230,6 +260,78 @@ class CPGExtractor:
         return edges
 
     # Edge extraction 
+
+    def _extract_discriminators(self, func_name: str, decorators: list[str]) -> dict:
+        """
+        Extract framework-agnostic structural discriminators from a function's
+        name and decorators. Returns a dict that makes this function unique
+        even when its body shape is structurally identical to other functions.
+
+        Supported kinds:
+          - http_endpoint (FastAPI, Flask, Django, Starlette, aiohttp)
+          - celery_task
+          - event_handler (click, typer, signal handlers)
+          - cli_command (argparse, click, typer)
+          - test_function (pytest)
+          - plain (no recognized framework)
+
+        Privacy: route strings and task names are preserved as-is in decorators
+        (they were already plaintext in the CPG). Function name is hashed.
+        This is intentional: route "/verify-token" is metadata, not user data.
+        """
+        import re
+        disc: dict = {"kind": "plain", "qualified_name": self.mapper.hash(func_name) if func_name else "h_unknown"}
+
+        if not decorators:
+            return disc
+
+        dec_text = " ".join(decorators)
+
+        # ── HTTP endpoints (FastAPI, Flask, Starlette, Django, aiohttp) ────────
+        http_methods = ["get", "post", "put", "patch", "delete", "head", "options", "route"]
+        for method in http_methods:
+            m = re.search(
+                rf'(?:app|router|blueprint|view|api|bp)\.{method}\(?["\']([^"\']+)["\']',
+                dec_text, re.IGNORECASE
+            )
+            if m:
+                disc.update({
+                    "kind":        "http_endpoint",
+                    "route":       m.group(1),
+                    "http_method": method.upper(),
+                })
+                return disc
+
+        # ── Celery tasks ───────────────────────────────────────────────────────
+        if re.search(r'@(?:\w+\.)?task', dec_text, re.IGNORECASE):
+            disc["kind"] = "celery_task"
+            disc["task_name"] = self.mapper.hash(func_name)
+            return disc
+
+        # ── Pytest test functions ──────────────────────────────────────────────
+        if func_name.startswith("test_") or re.search(r'@pytest\.', dec_text):
+            disc["kind"] = "test_function"
+            disc["test_name"] = self.mapper.hash(func_name)
+            return disc
+
+        # ── Click / Typer CLI commands ─────────────────────────────────────────
+        if re.search(r'@(?:\w+\.)?command|@(?:\w+\.)?group', dec_text, re.IGNORECASE):
+            disc["kind"] = "cli_command"
+            disc["command_name"] = self.mapper.hash(func_name)
+            return disc
+
+        # ── Event handlers (signals, callbacks) ───────────────────────────────
+        if re.search(r'@(?:\w+\.)?(?:on_|signal|receiver|event)', dec_text, re.IGNORECASE):
+            disc["kind"] = "event_handler"
+            disc["event_name"] = self.mapper.hash(func_name)
+            return disc
+
+        # ── Property / classmethod / staticmethod ─────────────────────────────
+        if re.search(r'@property|@classmethod|@staticmethod', dec_text):
+            disc["kind"] = "class_descriptor"
+            return disc
+
+        return disc
 
     def _extract_call_edges(
         self,

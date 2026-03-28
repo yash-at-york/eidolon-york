@@ -30,39 +30,40 @@ WATCH_RECURSIVE: bool = os.getenv("GHOST_WATCH_RECURSIVE", "false").lower() == "
 MAPPER_DB_PATH: str = os.getenv("GHOST_MAPPER_DB", str(ROOT_DIR / ".ghost_mapper.db"))
 SESSION_KEY_PATH: str = os.getenv("GHOST_SESSION_KEY", str(ROOT_DIR / ".ghost_session_key"))
 
-# Ollama (local inference) 
-# Set USE_OLLAMA=true in .env to route all LLM calls through a local Ollama server instead of HuggingFace inference providers.
-USE_OLLAMA: bool = os.getenv("USE_OLLAMA", "false").lower() == "true"
-OLLAMA_BASE_URL: str = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434/v1")
-OLLAMA_MODEL: str = os.getenv("OLLAMA_MODEL", "qwen2.5-coder:7b")
-
 # HuggingFace 
 HF_TOKEN: str = os.getenv("HF_TOKEN", "")
 
-# LLM models used when USE_OLLAMA=false.
-# Sizing rationale:
-#   Triage    = speed-critical
-#   Diagnosis = quality-critical
-#   Judge     = different-family
+# LLM models
+#   Triage  = speed-critical
+#   Diagnosis = quality-critical 
+#   Judge   = reliability-critical 
 HF_TRIAGE_MODEL: str = os.getenv("HF_TRIAGE_MODEL", "Qwen/Qwen2.5-Coder-7B-Instruct")
 HF_DIAGNOSIS_MODEL: str = os.getenv("HF_DIAGNOSIS_MODEL", "Qwen/Qwen2.5-Coder-32B-Instruct")
 HF_JUDGE_MODEL: str = os.getenv("HF_JUDGE_MODEL", "Qwen/Qwen2.5-7B-Instruct")
+
+# OpenAI Models
+USE_OPENAI_MODELS: bool = os.getenv("USE_OPENAI_MODELS", "true").lower() == "true"
+OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
+
+OPENAI_TRIAGE_MODEL: str = os.getenv("OPENAI_TRIAGE_MODEL", "gpt-4o-mini")
+OPENAI_DIAGNOSIS_MODEL: str = os.getenv("OPENAI_DIAGNOSIS_MODEL", "gpt-4o")
+OPENAI_JUDGE_MODEL: str = os.getenv("OPENAI_JUDGE_MODEL", "gpt-4o-mini")
 
 # Per-role max_tokens limits
 HF_TRIAGE_MAX_TOKENS: int = int(os.getenv("HF_TRIAGE_MAX_TOKENS", "512"))
 HF_DIAGNOSIS_MAX_TOKENS: int = int(os.getenv("HF_DIAGNOSIS_MAX_TOKENS", "1500"))
 HF_JUDGE_MAX_TOKENS: int = int(os.getenv("HF_JUDGE_MAX_TOKENS", "256"))
 
-# Embedding model - loaded locally
+# Embedding model - loaded locally (no API call needed)
 HF_EMBEDDING_MODEL: str = os.getenv("HF_EMBEDDING_MODEL", "Salesforce/codet5p-110m-embedding")
 
 # Vector Store (Qdrant) 
 QDRANT_HOST: str = os.getenv("QDRANT_HOST", "localhost")
 QDRANT_PORT: int = int(os.getenv("QDRANT_PORT", "6333"))
 QDRANT_COLLECTION: str = os.getenv("QDRANT_COLLECTION", "ghost_nodes")
-QDRANT_VECTOR_DIM: int = 256  # CodeT5+ 110M embedding dim
+QDRANT_VECTOR_DIM: int = 256  
 
-# In DEMO_MODE, use in-memory Qdrant
+# In DEMO_MODE, use in-memory Qdrant (no Docker needed)
 QDRANT_IN_MEMORY: bool = DEMO_MODE or os.getenv("QDRANT_IN_MEMORY", "false").lower() == "true"
 
 # Graph Store (FalkorDB) 
@@ -76,7 +77,6 @@ NATS_SUBJECT: str = "ghost.delta"
 NATS_STREAM: str = "GHOST"
 
 # LangSmith Observability 
-# Set LANGSMITH_API_KEY in .env
 LANGSMITH_API_KEY: str = os.getenv("LANGSMITH_API_KEY", "")
 LANGSMITH_PROJECT: str = os.getenv("LANGCHAIN_PROJECT", "ghost-twin")
 if LANGSMITH_API_KEY:
@@ -85,7 +85,6 @@ if LANGSMITH_API_KEY:
     os.environ["LANGSMITH_API_KEY"] = LANGSMITH_API_KEY
 
 # MTTD Measurement 
-# Prints elapsed seconds from pipeline start
 MTTD_MODE: bool = os.getenv("GHOST_MTTD_MODE", "true").lower() == "true"
 
 # Deduplication 
@@ -99,9 +98,22 @@ AGENT_GRAPH_DEPTH: int = int(os.getenv("AGENT_GRAPH_DEPTH", "2"))
 CONFIDENCE_THRESHOLD_AUTO: float = float(os.getenv("CONFIDENCE_THRESHOLD_AUTO", "0.85"))
 CONFIDENCE_THRESHOLD_WARN: float = float(os.getenv("CONFIDENCE_THRESHOLD_WARN", "0.65"))
 
+# Hypothesis Refinement Loop 
+# If composite_confidence < REFINE threshold AND retry_count < MAX_RETRIES,
+# route back to hypothesis_node for a second attempt with failure context injected.
+CONFIDENCE_THRESHOLD_REFINE: float = float(os.getenv("CONFIDENCE_THRESHOLD_REFINE", "0.55"))
+MAX_HYPOTHESIS_RETRIES: int = int(os.getenv("MAX_HYPOTHESIS_RETRIES", "2"))
+
+# ReAct Inner Loop (hypothesis node) 
+# Max iterations the LLM can request additional tool calls before finalizing.
+REACT_MAX_ITERATIONS: int = int(os.getenv("REACT_MAX_ITERATIONS", "3"))
+
+# Error Fingerprint Memory DB 
+# Separate SQLite DB for rejection memory + outcome tracking.
+MEMORY_DB_PATH: str = os.getenv("GHOST_MEMORY_DB", str(ROOT_DIR / ".ghost_memory.db"))
+
 # Security 
 PAYLOAD_SCAN_ENABLED: bool = os.getenv("GHOST_PAYLOAD_SCAN", "true").lower() == "true"
 
 # Web Dashboard Mode 
-# Set by launch_web.py automatically
 WEB_MODE: bool = os.getenv("GHOST_WEB_MODE", "false").lower() == "true"

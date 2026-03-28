@@ -23,6 +23,7 @@ import subprocess
 import sys
 import threading
 from pathlib import Path
+from typing import Any
 
 # Ensure project root is on path
 ROOT = Path(__file__).parent.parent.parent
@@ -30,6 +31,7 @@ sys.path.insert(0, str(ROOT))
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 import ghost_config as cfg
@@ -37,6 +39,10 @@ from src.web.events import event_hub
 from src.web.hitl_bridge import hitl_bridge
 
 app = FastAPI(title="Eidolon Dashboard", version="1.0")
+
+# Serve CSS + JS from /static
+_STATIC_DIR = Path(__file__).parent / "static"
+app.mount("/static", StaticFiles(directory=str(_STATIC_DIR)), name="static")
 
 # State 
 _pipeline_running = False
@@ -82,11 +88,11 @@ async def websocket_endpoint(ws: WebSocket):
 # Pipeline runner 
 
 class RunRequest(BaseModel):
-    event: str
+    event: Any = ""          # str OR structured dict {error_message, traceback}
     service: str = "demo-svc"
 
 
-def _run_pipeline_thread(error_event: str, service: str) -> None:
+def _run_pipeline_thread(error_event: Any, service: str) -> None:
     """Runs in a background thread. Imports are local to avoid circular deps."""
     global _pipeline_running
     try:
@@ -158,6 +164,41 @@ async def restore_bug():
     )
     event_hub.emit("bug_restored", stdout=result.stdout.strip())
     return {"status": "restored", "output": result.stdout.strip()}
+
+
+@app.post("/api/shutdown")
+async def shutdown_server():
+    def kill_trigger():
+        import time
+        time.sleep(0.5)
+        os._exit(0)
+    threading.Thread(target=kill_trigger, daemon=True).start()
+    return {"status": "shutting down"}
+
+
+@app.post("/api/wipe-memory")
+async def wipe_memory():
+    """
+    Clears all stored solutions from the Solution Library.
+    After wiping, the next occurrence of any previously known error will go
+    through the full pipeline (triage → hypothesis → validation → HITL → patch)
+    rather than instant replay.  The schema and rejection memory are preserved.
+    """
+    try:
+        from src.core.solution_library import SolutionLibrary
+        lib = SolutionLibrary()
+        stats_before = lib.get_library_stats()
+        lib.wipe_all()
+        lib.close()
+        event_hub.emit("memory_wiped", solutions_removed=stats_before["total_solutions"])
+        return {
+            "status": "wiped",
+            "solutions_removed": stats_before["total_solutions"],
+            "message": "Solution Library cleared. Next run will use full pipeline.",
+        }
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
 
 
 # Status 

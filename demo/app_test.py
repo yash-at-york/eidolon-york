@@ -12,11 +12,14 @@ app = FastAPI(title="Eidolon Demo App")
 
 @app.post("/verify-token")
 def verify_user_token(jwt_token: str, db_session: Session, user_id: int):
-    # [Eidolon DEMO BUG INJECTED]: Auth check bypassed - any token accepted
+    # BUG 1 (latent): Uses .last() instead of .first() - SQLAlchemy has no .last()
+    # BUG 2 (injected by demo): Missing auth check before db query
     decoded_payload = decode_jwt(jwt_token)
     print(user_id)
-    # Missing: if not decoded_payload: raise HTTPException(...)
-    user_record = db_session.query(User).filter(User.id == user_id).first()
+    if not decoded_payload:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+    user_record = db_session.query(User).filter(User.id == decoded_payload.id).last()
     return user_record
 
 
